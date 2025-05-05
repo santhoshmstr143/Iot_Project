@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Human Gallery</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .gallery img {
+            width: 200px;
+            border-radius: 10px;
+            border: 2px solid #aaa;
+        }
+    </style>
+</head>
+<body>
+    <h1>Human Image Gallery</h1>
+    <div class="gallery">
+        {% for image in images %}
+            <img src="/humans/{{ image }}" alt="{{ image }}">
+        {% endfor %}
+    </div>
+</body>
+</html>

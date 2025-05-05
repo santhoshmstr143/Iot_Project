@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detection Log</title>
+    <style>
+        table {
+            width: 60%;
+            border-collapse: collapse;
+            margin: 30px auto;
+            font-family: Arial, sans-serif;
+        }
+        th, td {
+            border: 1px solid #777;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #444;
+            color: white;
+        }
+        .alert {
+            color: red;
+            font-weight: bold;
+        }
+        #detectionImage, #latestImage {
+            max-width: 500px;
+            max-height: 500px;
+            display: block;
+            margin: 20px auto;
+            border: 2px solid #444;
+        }
+        .image-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        #statusDisplay {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .human-detected {
+            color: red;
+        }
+        .no-detection {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h2 style="text-align:center;">Detection Log</h2>
+
+    <!-- Image display -->
+    <div class="image-container">
+        <img id="detectionImage" src="humans/latesthuman.jpg" alt="Latest Detection">
+    </div>
+
+    <!-- Table for detection log -->
+    <table id="detectionLog">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Log entries will go here -->
+        </tbody>
+    </table>
+
+    <!-- Status display -->
+    <h1 style="text-align:center;">Detection System</h1>
+    <div id="statusDisplay" class="status no-detection">
+        Status: Loading...
+    </div>
+
+    <!-- Latest image -->
+    <div class="image-container">
+        <img id="latestImage" src="humans/latesthuman.jpg" alt="Latest detection image">
+    </div>
+
+    <!-- Audio element -->
+    <audio id="alertSound" src="alert.mp3" preload="auto"></audio>
+
+    <!-- JavaScript -->
+    <script>
+        const played = { recent: false };
+
+        function updateStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const imgElement = document.getElementById('detectionImage');
+                    const latestImage = document.getElementById('latestImage');
+                    const alertSound = document.getElementById('alertSound');
+                    const statusDiv = document.getElementById('statusDisplay');
+                    const tableBody = document.querySelector("#detectionLog tbody");
+
+                    // Update image
+                    if (data.image_url) {
+                        imgElement.src = data.image_url;
+                        imgElement.style.display = 'block';
+                    } else {
+                        imgElement.style.display = 'none';
+                        latestImage.style.display = 'none';
+                    }
+
+                    // Update log table
+                    const newRow = document.createElement('tr');
+                    newRow.innerHTML = `
+                        <td>${new Date().toLocaleString()}</td>
+                        <td class="${data.message === 'Human Detected' ? 'alert' : ''}">
+                            ${data.message}
+                        </td>
+                    `;
+                    tableBody.insertBefore(newRow, tableBody.firstChild);
+
+                    // Update status and alert
+                    if (data.message === "Human Detected") {
+                        statusDiv.className = "status human-detected";
+                        statusDiv.textContent = "Status: HUMAN DETECTED!";
+
+                        latestImage.src = '/humans/latesthuman.jpg?' + new Date().getTime(); // bust cache
+                        latestImage.style.display = 'block';
+
+                        if (!played.recent) {
+                            alert("🚨 Human Detected!");
+                            alertSound.play();
+                            played.recent = true;
+                            setTimeout(() => played.recent = false, 3000);
+                        }
+                    } else {
+                        statusDiv.className = "status no-detection";
+                        statusDiv.textContent = "Status: No detection";
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching status:', error);
+                });
+        }
+
+        // Initial status fetch + periodic update every 2 seconds
+        updateStatus();
+        setInterval(updateStatus, 2000);
+
+        // Initial CSV log load
+        fetch('/detection_log.csv')
+            .then(response => response.text())
+            .then(csvData => {
+                const tableBody = document.querySelector("#detectionLog tbody");
+                const rows = csvData.split('\n');
+                rows.forEach(row => {
+                    const columns = row.split(',');
+                    if (columns.length === 2) {
+                        const rowElement = document.createElement('tr');
+                        rowElement.innerHTML = `
+                            <td>${columns[0].trim()}</td>
+                            <td>${columns[1].trim()}</td>
+                        `;
+                        tableBody.appendChild(rowElement);
+                    }
+                });
+            })
+            .catch(error => console.error('Error loading CSV data:', error));
+    </script>
+</body>
+</html>
